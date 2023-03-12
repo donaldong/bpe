@@ -1,6 +1,10 @@
 /**
  *   Fast BPE Merge List Building
  * 
+ *   Usage:
+ * 
+ *   ./bpe <vocab size> < ~/bpe/1-prepare/words.txt
+ * 
  *   -- Might have bugs though!
  */
 #include <iostream>
@@ -16,7 +20,9 @@ struct Word {
   list<string> toks;
   int freq;
 };
-int main() {
+int main(int argc, char *argv[]) {
+  int vocabSize = stoi(argv[1]);
+
   list<Word> words;
   using TokPair = pair<string, string>;
   map<TokPair, unordered_set<Word*>> wordsWithPair;
@@ -62,7 +68,7 @@ int main() {
     pairFreq[make_pair(t1, t2)] = freq;
     pq.emplace(freq, move(t1), move(t2));
   }
-  while (merges.size() < 20000) {
+  while (merges.size() < vocabSize) {
     cerr << merges.size() << " " << pq.size() << endl;
     auto [freq, a, b] = pop();
     auto p = make_pair(a, b);
