@@ -4,8 +4,6 @@
  *   Usage:
  * 
  *   ./bpe <vocab size> < ~/bpe/1-prepare/words.txt
- * 
- *   -- Might have bugs though!
  */
 #include <iostream>
 #include <list>
@@ -15,27 +13,41 @@
 #include <set>
 #include <queue>
 #include <tuple>
+#include "third-parth/utf8.h"
 using namespace std;
+
+inline void decode_utf8(const string& bytes, wstring& wstr) {
+  utf8::utf8to32(bytes.begin(), bytes.end(), back_inserter(wstr));
+}
+
+inline void encode_utf8(const wstring& wstr, string& bytes) {
+  utf8::utf32to8(wstr.begin(), wstr.end(), back_inserter(bytes));
+}
+
 struct Word {
-  list<string> toks;
+  list<wstring> toks;
   int freq;
 };
 int main(int argc, char *argv[]) {
   int vocabSize = stoi(argv[1]);
 
   list<Word> words;
-  using TokPair = pair<string, string>;
+  using TokPair = pair<wstring, wstring>;
   map<TokPair, unordered_set<Word*>> wordsWithPair;
-  vector<pair<string, string>> merges;
-  set<tuple<int, string, string>> pq;
+  unordered_set<wstring> vocab;
+  vector<pair<wstring, wstring>> merges;
+  set<tuple<int, wstring, wstring>> pq;
   map<TokPair, int> pairFreq;
   {
     string word;
     int freq;
     while (cin >> word >> freq) {
-      list<string> toks;
-      for (char c : word) {
-        string s{c};
+      list<wstring> toks;
+      wstring bytes;
+      decode_utf8(word, bytes);
+      for (auto c : bytes) {
+        wstring s{c};
+        vocab.insert(s);
         toks.push_back(s);
       }
       words.push_back({.toks=move(toks), .freq=freq});
@@ -47,7 +59,7 @@ int main(int argc, char *argv[]) {
       wordsWithPair[p].insert(&word);
     }
   }
-  auto update = [&](const string& a, const string& b, int val) {
+  auto update = [&](const wstring& a, const wstring& b, int val) {
     auto p = make_pair(a, b);
     auto [i, _] = pairFreq.try_emplace(p);
     pq.erase(make_tuple(i->second, a, b));
@@ -68,13 +80,14 @@ int main(int argc, char *argv[]) {
     pairFreq[make_pair(t1, t2)] = freq;
     pq.emplace(freq, move(t1), move(t2));
   }
-  while (merges.size() < vocabSize) {
-    cerr << merges.size() << " " << pq.size() << endl;
+  while (vocab.size() < vocabSize) {
+    cerr << vocab.size() << ' ' << merges.size() << " " << pq.size() << endl;
     auto [freq, a, b] = pop();
     auto p = make_pair(a, b);
     auto v = a+b;
     auto itr = wordsWithPair.find(p);
     if (itr == wordsWithPair.end()) continue;
+    vocab.insert(v);
     merges.emplace_back(a, b);
     map<TokPair, int> updates;
     for (auto word : itr->second) {
@@ -106,8 +119,17 @@ int main(int argc, char *argv[]) {
     }
     if (pq.empty()) break;
   }
+  cout << vocab.size() << endl;
+  for (auto& v : vocab) {
+    string word;
+    encode_utf8(v, word);
+    cout << word << '\n';
+  }
+  cout << merges.size() << endl;
   for (auto& [a, b] : merges) {
-    cout << a << ' ' << b << endl;
+    string wa, wb;
+    encode_utf8(a, wa), encode_utf8(b, wb);
+    cout << wa << ' ' << wb << '\n';
   }
   return 0;
 }
