@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
     auto [i, _] = pairFreq.try_emplace(p);
     pq.erase(make_tuple(i->second, a, b));
     i->second += val;
-    pq.emplace(i->second, a, b);
+    if (i->second) pq.emplace(i->second, a, b);
   };
   auto pop = [&]() {
     auto itr = prev(pq.end());
@@ -92,9 +92,9 @@ int main(int argc, char *argv[]) {
         *i = v;
         if (next(i) != word->toks.end()) {
           auto p1 = make_pair(b, *next(i));
+          auto p2 = make_pair(v, *next(i));
           updates[p1] -= word->freq;
           wordsWithPair[p1].erase(word);
-          auto p2 = make_pair(v, *next(i));
           updates[p2] += word->freq;
           wordsWithPair[p2].insert(word);
         }
